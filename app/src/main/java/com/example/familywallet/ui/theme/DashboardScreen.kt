@@ -22,6 +22,7 @@ fun DashboardScreen(onNavigate: (String) -> Unit, modifier: Modifier = Modifier)
     var expanded by remember { mutableStateOf(false) }
     var currentBudget by remember { mutableStateOf(0.0) }
     var period by remember { mutableStateOf("Days") }
+    var periodValue by remember { mutableStateOf("") }
     val periodOptions = listOf("Days", "Weeks", "Months", "Years")
 
     // State for the dialog
@@ -64,13 +65,20 @@ fun DashboardScreen(onNavigate: (String) -> Unit, modifier: Modifier = Modifier)
                         Text(
                             text = "BUDGET",
                             fontSize = 18.sp,
-                            color = Color.White
+                            color = Color.Black
                         )
 
                         Text(
                             text = "$${currentBudget.format(2)}",
                             fontSize = 55.sp,
                             modifier = Modifier.padding(vertical = 8.dp),
+                            color = Color.White
+                        )
+
+                        // Display the period and period value below the budget
+                        Text(
+                            text = if (periodValue.isNotEmpty()) "Period: $periodValue $period" else "Period: Not Selected",
+                            fontSize = 18.sp,
                             color = Color.White
                         )
                     }
@@ -87,9 +95,10 @@ fun DashboardScreen(onNavigate: (String) -> Unit, modifier: Modifier = Modifier)
                 if (dialogOpen) {
                     BudgetDialog(
                         onDismiss = { dialogOpen = false },
-                        onBudgetSet = { newBudget, newPeriod ->
+                        onBudgetSet = { newBudget, newPeriod, newPeriodValue ->
                             currentBudget = newBudget
                             period = newPeriod
+                            periodValue = newPeriodValue
                             dialogOpen = false
                         },
                         periodOptions = periodOptions
@@ -112,7 +121,7 @@ fun DashboardScreen(onNavigate: (String) -> Unit, modifier: Modifier = Modifier)
 @Composable
 fun BudgetDialog(
     onDismiss: () -> Unit,
-    onBudgetSet: (Double, String) -> Unit,
+    onBudgetSet: (Double, String, String) -> Unit,
     periodOptions: List<String>
 ) {
     var budgetInput by remember { mutableStateOf(TextFieldValue("")) }
@@ -134,7 +143,7 @@ fun BudgetDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // New TextField for additional input
+                // TextField for additional input
                 TextField(
                     value = additionalInput,
                     onValueChange = { additionalInput = it },
@@ -157,7 +166,8 @@ fun BudgetDialog(
                         trailingIcon = {
                             Icon(Icons.Default.ArrowDropDown, contentDescription = null)
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
                             .menuAnchor()
                     )
                     ExposedDropdownMenu(
@@ -181,7 +191,8 @@ fun BudgetDialog(
             TextButton(
                 onClick = {
                     val newBudget = budgetInput.text.toDoubleOrNull() ?: 0.0
-                    onBudgetSet(newBudget, selectedPeriod)
+                    val newPeriodValue = additionalInput.text
+                    onBudgetSet(newBudget, selectedPeriod, newPeriodValue)
                 }
             ) {
                 Text("Set")
