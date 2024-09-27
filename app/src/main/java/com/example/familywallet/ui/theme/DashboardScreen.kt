@@ -1,29 +1,38 @@
 package com.example.familywallet.ui
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
+import com.example.familywallet.ui.theme.FamilyWalletTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardScreen(modifier: Modifier = Modifier) {
+fun DashboardScreen(onNavigate: (String) -> Unit, modifier: Modifier = Modifier) {
     var expanded by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
+    var currentBudget by remember { mutableStateOf(0.0) }
+    var period by remember { mutableStateOf("Days") }
+    val periodOptions = listOf("Days", "Weeks", "Months", "Years")
+
+    // State for the dialog
+    var dialogOpen by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Dashboard") },
                 navigationIcon = {
-                    IconButton(onClick = { expanded = true }) {
+                    IconButton(onClick = { expanded = !expanded }) {
                         Icon(
                             imageVector = Icons.Default.Menu,
                             contentDescription = "Menu"
@@ -34,50 +43,165 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
         },
         content = { padding ->
             Column(
-                modifier = modifier
+                modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(16.dp)
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = "Welcome To",
-                    fontSize = 20.sp
-                )
+                // Displaying current budget on a gray background
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.DarkGray)
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Title for budget
+                        Text(
+                            text = "BUDGET",
+                            fontSize = 18.sp,
+                            color = Color.White
+                        )
+
+                        Text(
+                            text = "$${currentBudget.format(2)}",
+                            fontSize = 55.sp,
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            color = Color.White
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Button to open the budget dialog
+                Button(onClick = { dialogOpen = true }) {
+                    Text("Set Budget")
+                }
+
+                // Dialog for setting budget and period
+                if (dialogOpen) {
+                    BudgetDialog(
+                        onDismiss = { dialogOpen = false },
+                        onBudgetSet = { newBudget, newPeriod ->
+                            currentBudget = newBudget
+                            period = newPeriod
+                            dialogOpen = false
+                        },
+                        periodOptions = periodOptions
+                    )
+                }
             }
         }
     )
 
-    DropdownMenu(
+    // Insert Menu component
+    Menu(
         expanded = expanded,
-        onDismissRequest = { expanded = false }
-    ) {
-        DropdownMenuItem(
-            text = { Text("Profile") },
-            onClick = {
-                expanded = false
-                // TODO: Реализовать переход к профилю
+        onDismiss = { expanded = false },
+        onNavigate = onNavigate
+    )
+}
+
+// Dialog to set budget and select period
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BudgetDialog(
+    onDismiss: () -> Unit,
+    onBudgetSet: (Double, String) -> Unit,
+    periodOptions: List<String>
+) {
+    var budgetInput by remember { mutableStateOf(TextFieldValue("")) }
+    var additionalInput by remember { mutableStateOf(TextFieldValue("")) }
+    var selectedPeriod by remember { mutableStateOf(periodOptions[0]) }
+    var expanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Set Your Budget") },
+        text = {
+            Column {
+                TextField(
+                    value = budgetInput,
+                    onValueChange = { budgetInput = it },
+                    label = { Text("Budget Amount") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // New TextField for additional input
+                TextField(
+                    value = additionalInput,
+                    onValueChange = { additionalInput = it },
+                    label = { Text("Period Value") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Dropdown for period selection
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    TextField(
+                        readOnly = true,
+                        value = selectedPeriod,
+                        onValueChange = {},
+                        label = { Text("Select Period") },
+                        trailingIcon = {
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                            .menuAnchor()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        periodOptions.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = {
+                                    selectedPeriod = option
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
-        )
-        DropdownMenuItem(
-            text = { Text("Statistics") },
-            onClick = {
-                expanded = false
-                // TODO: Реализовать переход к экрану статистики
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val newBudget = budgetInput.text.toDoubleOrNull() ?: 0.0
+                    onBudgetSet(newBudget, selectedPeriod)
+                }
+            ) {
+                Text("Set")
             }
-        )
-        DropdownMenuItem(
-            text = { Text("Settings") },
-            onClick = {
-                expanded = false
-                // TODO: Реализовать переход к настройкам
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
             }
-        )
-        DropdownMenuItem(
-            text = { Text("Exit") },
-            onClick = {
-                expanded = false
-                // TODO: Реализовать выход из аккаунта
-            }
-        )
+        }
+    )
+}
+
+// Extension for formatting number to two decimal places
+fun Double.format(digits: Int) = "%.${digits}f".format(this)
+
+@Preview(showBackground = true)
+@Composable
+fun DashboardScreenPreview() {
+    FamilyWalletTheme {
+        DashboardScreen(onNavigate = {})
     }
 }
